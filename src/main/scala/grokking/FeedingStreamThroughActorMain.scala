@@ -1,44 +1,34 @@
 package grokking
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.stream._
 import akka.stream.scaladsl._
-import akka.{Done, NotUsed}
-import akka.util.ByteString
-
-import scala.concurrent._
-import scala.concurrent.duration._
-import java.nio.file.Paths
-import java.util.concurrent.CountDownLatch
 
 // https://jaceklaskowski.gitbooks.io/spray-the-getting-started/content/akka-streams-feeding_source_through_actor.html
+// http://loicdescotte.github.io/posts/play-akka-streams-twitter/
 object FeedingStreamThroughActorMain extends App {
 
   implicit val system = ActorSystem("FeedingStreamThroughActor")
 
-  val fibonaci: Stream[Int] = {
+  val fibonaci: Stream[BigInt] = {
     import Stream._
-    def loop(a0: Int, a1: Int): Stream[Int] = a1 #:: loop(a1, a0 + a1)
+    def loop(a0: BigInt, a1: BigInt): Stream[BigInt] = a1 #:: loop(a1, a0 + a1)
 
     0 #:: loop(0, 1)
   }
 
-  //  fibonaci.take(5).foreach(println)
-
-  def run(actor: ActorRef): Unit = {
-    import system.dispatcher
-    Future {
-      Thread.sleep(100) // WHY? It does not work without this sleep
-      fibonaci.take(21).foreach { n => actor ! n }
-    }
+  def publishFibonaciNumbers(n: Int)(actor: ActorRef): Unit = {
+    fibonaci.take(n).foreach { n => actor ! n }
   }
 
-  val source = Source.actorRef[Int](0, OverflowStrategy.fail).mapMaterializedValue { ref => println(ref); run(ref) }
+  val source = Source.actorRef[BigInt](1000, OverflowStrategy.fail)
   implicit val m = ActorMaterializer()
 
-  source.runForeach { int ⇒
-    println(s"received: $int")
-  }(m)
+  val ref: ActorRef = Flow[(BigInt, Long)].to(Sink.foreach { i => println(s"received: $i") }).runWith(source.zipWithIndex)
 
-  //  system.terminate()
+  Thread.sleep(100) // Need this sleep, does not work without it. Why???
+  publishFibonaciNumbers(99)(ref)
+
+  Thread.sleep(500)
+  system.terminate()
 }
