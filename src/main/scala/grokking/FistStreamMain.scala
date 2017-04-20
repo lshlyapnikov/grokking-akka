@@ -35,8 +35,6 @@ object FistStreamMain extends App {
     Some((s + 1, s))
   }
 
-
-
   val source4: Source[BigInt, NotUsed] = Source.unfold(BigInt(0)) { s =>
     if (s < 4) Some((s + 1, s))
     else None
