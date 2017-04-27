@@ -10,7 +10,7 @@ import scala.concurrent._
 import scala.concurrent.duration._
 import java.nio.file.Paths
 
-object FistStreamMain extends App {
+object FirstStreamMain extends App {
   val source: Source[Int, NotUsed] = Source(1 to 10)
 
   implicit val system = ActorSystem("QuickStart")
@@ -43,4 +43,8 @@ object FistStreamMain extends App {
   source3.zip(source4).runForeach { i => println(i) }(materializer)
 
   source1.zip(source3).take(99).runForeach { i => println(i) }(materializer)
+
+  val flow: Flow[BigInt, (String, Long), NotUsed] = Flow[BigInt].map { i => i * 2 }.map { i => i.toString }.zipWithIndex
+
+  source1.via(flow).take(99).runForeach { i => println(i) }(materializer)
 }
